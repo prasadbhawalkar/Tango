@@ -121,10 +121,10 @@ export const PlayView: React.FC = () => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   return (
-    <div className="flex flex-col h-full gap-8 bg-slate-950 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-full gap-8 bg-slate-950 overflow-y-auto custom-scrollbar">
       {/* Playback Area */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-8 min-h-0">
-        <div className="flex-1 bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-8 text-center shadow-2xl">
+      <div className="flex-1 flex flex-col lg:flex-row gap-8">
+        <div className="flex-1 bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-6 md:p-12 text-center shadow-2xl min-h-[400px]">
             <AnimatePresence mode="wait">
                 {activePlaylistId ? (
                     <motion.div 
@@ -132,14 +132,14 @@ export const PlayView: React.FC = () => {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.1 }}
-                        className="flex flex-col items-center w-full"
+                        className="flex flex-col items-center w-full max-w-2xl"
                     >
-                        <div className={`w-40 h-40 rounded-full border-4 border-orange-500 flex items-center justify-center bg-orange-500/10 text-orange-500 text-6xl font-black mb-8 shadow-[0_0_40px_rgba(249,115,22,0.2)]`}>
+                        <div className={`w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-orange-500 flex items-center justify-center bg-orange-500/10 text-orange-500 text-5xl md:text-6xl font-black mb-6 md:mb-8 shadow-[0_0_40px_rgba(249,115,22,0.2)]`}>
                             {currentItemIndex + 1 < 10 ? `0${currentItemIndex + 1}` : currentItemIndex + 1}
                         </div>
-                        <h2 className="text-4xl font-bold mb-4 tracking-tight uppercase italic">{items[playlist?.itemIds[currentItemIndex]!]?.title}</h2>
+                        <h2 className="text-2xl md:text-4xl font-bold mb-4 tracking-tight uppercase italic truncate w-full px-4">{items[playlist?.itemIds[currentItemIndex]!]?.title}</h2>
                         
-                        <div className="flex items-center gap-4 mb-10">
+                        <div className="flex items-center gap-4 mb-8">
                             <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
                                 Loop {currentRepeat} <span className="text-slate-700">OF</span> {items[playlist?.itemIds[currentItemIndex]!]?.repeatCount}
                             </span>
@@ -149,7 +149,7 @@ export const PlayView: React.FC = () => {
                         </div>
                         
                         {/* Media Players */}
-                        <div className="w-full max-w-2xl bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-inner">
+                        <div className="w-full bg-slate-950 p-4 md:p-6 rounded-2xl border border-slate-800 shadow-inner">
                             {mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.AUDIO && (
                                 <audio 
                                     ref={audioRef}
@@ -169,7 +169,7 @@ export const PlayView: React.FC = () => {
                                     autoPlay={isPlaying}
                                     onEnded={handleNext}
                                     controls
-                                    className="w-full rounded-xl shadow-2xl border border-white/5"
+                                    className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[300px]"
                                     onPlay={() => setIsPlaying(true)}
                                     onPause={() => setIsPlaying(false)}
                                 />
@@ -201,7 +201,7 @@ export const PlayView: React.FC = () => {
 
         {/* Playlist Selection and Queue */}
         <div className="w-full lg:w-96 flex flex-col gap-6">
-            <div className="bg-slate-900 rounded-3xl border border-slate-800 flex-1 p-6 flex flex-col gap-6 shadow-xl leading-relaxed">
+            <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl leading-relaxed min-h-[300px]">
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active sequence</span>
                     <div className="flex gap-1">
@@ -225,7 +225,7 @@ export const PlayView: React.FC = () => {
                     ))}
                 </select>
 
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar max-h-[400px]">
                     {playlist?.itemIds.map((id, idx) => (
                         <div 
                             key={id}
@@ -253,8 +253,8 @@ export const PlayView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Controls */}
-            <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl sticky bottom-0">
+            {/* Controls panel - No longer sticky to avoid overlaps */}
+            <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl">
                 <div className="flex justify-around items-center">
                     <button onClick={() => setCurrentItemIndex(prev => Math.max(0, prev - 1))} className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all hover:bg-slate-800 rounded-full">
                         <SkipBack size={24} />
