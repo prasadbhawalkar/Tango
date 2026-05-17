@@ -1,0 +1,8 @@
+{
+  "name": "Tango",
+  "description": "A high-performance, technical playlist manager for audio/video sequencing, scheduling, and multi-format playback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
