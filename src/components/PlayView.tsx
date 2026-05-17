@@ -15,6 +15,7 @@ export const PlayView: React.FC = () => {
   
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(1);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [currentRepeat, setCurrentRepeat] = useState(1);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -31,6 +32,11 @@ export const PlayView: React.FC = () => {
     };
   }, [mediaUrl]);
 
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume;
+    if (videoRef.current) videoRef.current.volume = volume;
+  }, [volume]);
+
   // Load current item
   const loadItem = useCallback(async () => {
     if (!playlist) return;
@@ -45,6 +51,14 @@ export const PlayView: React.FC = () => {
           if (mediaUrl) URL.revokeObjectURL(mediaUrl);
           const url = URL.createObjectURL(fileData.blob);
           setMediaUrl(url);
+          
+          // Reset time to start point
+          const resetTime = () => {
+              if (audioRef.current) audioRef.current.currentTime = item.start || 0;
+              if (videoRef.current) videoRef.current.currentTime = item.start || 0;
+          };
+          // Brief delay to ensure media is loaded enough to seek
+          setTimeout(resetTime, 150);
         }
       }
     } else {
@@ -81,10 +95,20 @@ export const PlayView: React.FC = () => {
   useEffect(() => {
     if (isPlaying && playlist?.itemIds[currentItemIndex]) {
         const item = items[playlist.itemIds[currentItemIndex]];
+        
         if (item.type === PlaylistItemType.SILENCE) {
             const timer = setTimeout(handleNext, item.duration * 1000);
             return () => clearTimeout(timer);
         }
+
+        // Monitoring for trim end point
+        const interval = setInterval(() => {
+            const media = audioRef.current || videoRef.current;
+            if (media && item.end && media.currentTime >= item.end) {
+                handleNext();
+            }
+        }, 500);
+        return () => clearInterval(interval);
     }
   }, [isPlaying, currentItemIndex, playlist, items, handleNext]);
 
@@ -97,9 +121,9 @@ export const PlayView: React.FC = () => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   return (
-    <div className="flex flex-col h-full gap-8 bg-slate-950 -m-8 p-8 overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-full gap-8 bg-slate-950 p-4 md:p-8 overflow-y-auto custom-scrollbar">
       {/* Playback Area */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-8">
+      <div className="flex-1 flex flex-col lg:flex-row gap-8 min-h-0">
         <div className="flex-1 bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-8 text-center shadow-2xl">
             <AnimatePresence mode="wait">
                 {activePlaylistId ? (
@@ -134,6 +158,8 @@ export const PlayView: React.FC = () => {
                                     onEnded={handleNext}
                                     controls
                                     className="w-full accent-orange-500"
+                                    onPlay={() => setIsPlaying(true)}
+                                    onPause={() => setIsPlaying(false)}
                                 />
                             )}
                             {mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.VIDEO && (
@@ -144,6 +170,8 @@ export const PlayView: React.FC = () => {
                                     onEnded={handleNext}
                                     controls
                                     className="w-full rounded-xl shadow-2xl border border-white/5"
+                                    onPlay={() => setIsPlaying(true)}
+                                    onPause={() => setIsPlaying(false)}
                                 />
                             )}
                             {items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.SILENCE && (
@@ -152,6 +180,11 @@ export const PlayView: React.FC = () => {
                                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400">Silent Sequence Active</p>
                                     <p className="text-3xl font-mono mt-2 text-white">{items[playlist?.itemIds[currentItemIndex]!]?.duration}s</p>
                                 </div>
+                            )}
+
+                            {/* Custom Playback Progress Overlay - Simplified for now */}
+                            {!mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type !== PlaylistItemType.SILENCE && (
+                                <div className="text-slate-600 italic text-xs">Media initialization required...</div>
                             )}
                         </div>
                     </motion.div>
@@ -221,19 +254,37 @@ export const PlayView: React.FC = () => {
             </div>
 
             {/* Controls */}
-            <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex justify-around items-center shadow-xl">
-                <button onClick={() => setCurrentItemIndex(prev => Math.max(0, prev - 1))} className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all hover:bg-slate-800 rounded-full">
-                    <SkipBack size={24} />
-                </button>
-                <button 
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="w-16 h-16 rounded-full bg-orange-500 text-slate-950 flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:scale-105 active:scale-95 transition-all"
-                >
-                    {isPlaying ? <Pause size={32} /> : <Play size={32} fill="currentColor" />}
-                </button>
-                <button onClick={handleNext} className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all hover:bg-slate-800 rounded-full">
-                    <SkipForward size={24} />
-                </button>
+            <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl sticky bottom-0">
+                <div className="flex justify-around items-center">
+                    <button onClick={() => setCurrentItemIndex(prev => Math.max(0, prev - 1))} className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all hover:bg-slate-800 rounded-full">
+                        <SkipBack size={24} />
+                    </button>
+                    <button 
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      className="w-16 h-16 rounded-full bg-orange-500 text-slate-950 flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:scale-105 active:scale-95 transition-all"
+                    >
+                        {isPlaying ? <Pause size={32} /> : <Play size={32} fill="currentColor" />}
+                    </button>
+                    <button onClick={handleNext} className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all hover:bg-slate-800 rounded-full">
+                        <SkipForward size={24} />
+                    </button>
+                </div>
+
+                {/* Sound/Volume Controls */}
+                <div className="flex items-center gap-4 px-2">
+                    <button onClick={() => setVolume(v => v === 0 ? 1 : 0)} className="text-slate-500 hover:text-white">
+                        <VolumeX size={18} className={volume === 0 ? 'text-red-500' : ''} />
+                    </button>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        value={volume} 
+                        onChange={(e) => setVolume(parseFloat(e.target.value))}
+                        className="flex-1 accent-orange-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                    />
+                </div>
             </div>
         </div>
       </div>
