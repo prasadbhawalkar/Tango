@@ -52,13 +52,7 @@ export const PlayView: React.FC = () => {
           const url = URL.createObjectURL(fileData.blob);
           setMediaUrl(url);
           
-          // Reset time to start point
-          const resetTime = () => {
-              if (audioRef.current) audioRef.current.currentTime = item.start || 0;
-              if (videoRef.current) videoRef.current.currentTime = item.start || 0;
-          };
-          // Brief delay to ensure media is loaded enough to seek
-          setTimeout(resetTime, 150);
+          // Seeking logic moved to onLoadedMetadata for better reliability
         } else {
           setMediaUrl(null);
         }
@@ -69,6 +63,26 @@ export const PlayView: React.FC = () => {
         setMediaUrl(null);
     }
   }, [playlist, currentItemIndex, items]);
+
+  const onLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    const item = items[playlist?.itemIds[currentItemIndex]!];
+    if (item && item.start) {
+        e.currentTarget.currentTime = item.start;
+    }
+    if (isPlaying) {
+        e.currentTarget.play().catch(err => {
+            console.warn("Auto-play blocked after metadata load", err);
+            // Don't set isPlaying(false) here, let the user trigger play manually if needed
+        });
+    }
+  };
+
+  const onTimeUpdate = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    const item = items[playlist?.itemIds[currentItemIndex]!];
+    if (isPlaying && item && item.end && e.currentTarget.currentTime >= item.end) {
+        handleNext();
+    }
+  };
 
   useEffect(() => {
     loadItem();
@@ -84,7 +98,8 @@ export const PlayView: React.FC = () => {
         playPromise.catch(error => {
           console.error("Playback failed:", error);
           // Auto-play was probably blocked, or media not ready
-          setIsPlaying(false);
+          // We don't forcefully set isPlaying(false) here because it causes flickering
+          // and prevents user from manually hitting play on the media controls.
         });
       }
     } else {
@@ -122,15 +137,7 @@ export const PlayView: React.FC = () => {
             const timer = setTimeout(handleNext, item.duration * 1000);
             return () => clearTimeout(timer);
         }
-
-        // Monitoring for trim end point
-        const interval = setInterval(() => {
-            const media = audioRef.current || videoRef.current;
-            if (media && item.end && media.currentTime >= item.end) {
-                handleNext();
-            }
-        }, 500);
-        return () => clearInterval(interval);
+        // Trim monitoring is now handled via onTimeUpdate for non-silence items
     }
   }, [isPlaying, currentItemIndex, playlist, items, handleNext]);
 
@@ -146,7 +153,7 @@ export const PlayView: React.FC = () => {
     <div className="flex flex-col h-full gap-8 bg-slate-950 overflow-y-auto custom-scrollbar">
       {/* Playback Area */}
       <div className="flex-1 flex flex-col lg:flex-row gap-8">
-        <div className="flex-1 bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-6 md:p-12 text-center shadow-2xl min-h-[400px]">
+        <div className="flex-1 bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-4 md:p-12 text-center shadow-2xl min-h-[400px]">
             <AnimatePresence mode="wait">
                 {activePlaylistId ? (
                     <motion.div 
@@ -154,30 +161,35 @@ export const PlayView: React.FC = () => {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.1 }}
-                        className="flex flex-col items-center w-full max-w-2xl"
+                        className="flex flex-col items-center w-full max-w-2xl px-2"
                     >
-                        <div className={`w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-orange-500 flex items-center justify-center bg-orange-500/10 text-orange-500 text-5xl md:text-6xl font-black mb-6 md:mb-8 shadow-[0_0_40px_rgba(249,115,22,0.2)]`}>
-                            {currentItemIndex + 1 < 10 ? `0${currentItemIndex + 1}` : currentItemIndex + 1}
-                        </div>
-                        <h2 className="text-2xl md:text-4xl font-bold mb-4 tracking-tight uppercase italic truncate w-full px-4">{items[playlist?.itemIds[currentItemIndex]!]?.title}</h2>
-                        
-                        <div className="flex items-center gap-4 mb-8">
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
-                                Loop {currentRepeat} <span className="text-slate-700">OF</span> {items[playlist?.itemIds[currentItemIndex]!]?.repeatCount}
-                            </span>
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
-                                {items[playlist?.itemIds[currentItemIndex]!]?.type}
-                            </span>
-                        </div>
+                        <div className="flex flex-row items-center gap-3 sm:gap-4 w-full justify-center mb-4">
+                                <div className={`w-12 h-12 md:w-24 md:h-24 shrink-0 rounded-full border-2 md:border-4 border-orange-500 flex items-center justify-center bg-orange-500/10 text-orange-500 text-xl md:text-4xl font-black shadow-[0_0_20px_rgba(249,115,22,0.15)]`}>
+                                    {currentItemIndex + 1 < 10 ? `0${currentItemIndex + 1}` : currentItemIndex + 1}
+                                </div>
+                                <div className="text-left truncate flex-1 max-w-md">
+                                    <h2 className="text-base md:text-2xl font-bold tracking-tight uppercase italic truncate">{items[playlist?.itemIds[currentItemIndex]!]?.title}</h2>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
+                                            Loop {currentRepeat} / {items[playlist?.itemIds[currentItemIndex]!]?.repeatCount}
+                                        </span>
+                                        <span className="text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                                            {items[playlist?.itemIds[currentItemIndex]!]?.type}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                         
                         {/* Media Players */}
-                        <div className="w-full bg-slate-950 p-4 md:p-6 rounded-2xl border border-slate-800 shadow-inner">
+                        <div className="w-full bg-slate-950 p-2 md:p-6 rounded-2xl border border-slate-800 shadow-inner">
                             {mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.AUDIO && (
                                 <audio 
                                     ref={audioRef}
                                     src={mediaUrl}
                                     autoPlay={isPlaying}
                                     onEnded={handleNext}
+                                    onLoadedMetadata={onLoadedMetadata}
+                                    onTimeUpdate={onTimeUpdate}
                                     controls
                                     className="w-full accent-orange-500"
                                     onPlay={() => setIsPlaying(true)}
@@ -190,8 +202,10 @@ export const PlayView: React.FC = () => {
                                     src={mediaUrl}
                                     autoPlay={isPlaying}
                                     onEnded={handleNext}
+                                    onLoadedMetadata={onLoadedMetadata}
+                                    onTimeUpdate={onTimeUpdate}
                                     controls
-                                    className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[300px]"
+                                    className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[40vh] md:max-h-[500px] bg-black"
                                     onPlay={() => setIsPlaying(true)}
                                     onPause={() => setIsPlaying(false)}
                                 />
