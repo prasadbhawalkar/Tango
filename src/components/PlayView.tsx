@@ -59,7 +59,11 @@ export const PlayView: React.FC = () => {
           };
           // Brief delay to ensure media is loaded enough to seek
           setTimeout(resetTime, 150);
+        } else {
+          setMediaUrl(null);
         }
+      } else {
+        setMediaUrl(null);
       }
     } else {
         setMediaUrl(null);
@@ -200,9 +204,23 @@ export const PlayView: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Custom Playback Progress Overlay - Simplified for now */}
+                            {/* Custom Playback Progress Overlay */}
                             {!mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type !== PlaylistItemType.SILENCE && (
-                                <div className="text-slate-600 italic text-xs">Media initialization required...</div>
+                                <div className="p-8 border-2 border-dashed border-red-500/20 rounded-xl bg-red-500/5">
+                                    <div className="text-red-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
+                                        <VolumeX size={14} /> Source Missing
+                                    </div>
+                                    <div className="text-slate-500 text-[10px] leading-relaxed">
+                                        The media file for this item is not available in local storage.<br/>
+                                        This often happens with imported M3U lists or cleared browser data.
+                                    </div>
+                                    <button 
+                                        onClick={handleNext}
+                                        className="mt-4 text-[10px] font-bold text-orange-500 hover:text-white transition-colors uppercase tracking-widest"
+                                    >
+                                        Skip to Next →
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </motion.div>
