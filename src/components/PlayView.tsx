@@ -70,6 +70,24 @@ export const PlayView: React.FC = () => {
     loadItem();
   }, [loadItem]);
 
+  useEffect(() => {
+    const media = audioRef.current || videoRef.current;
+    if (!media) return;
+
+    if (isPlaying) {
+      const playPromise = media.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Playback failed:", error);
+          // Auto-play was probably blocked, or media not ready
+          setIsPlaying(false);
+        });
+      }
+    } else {
+      media.pause();
+    }
+  }, [isPlaying, mediaUrl]);
+
   // Handle item completion
   const handleNext = useCallback(() => {
     if (!playlist) return;
@@ -193,7 +211,7 @@ export const PlayView: React.FC = () => {
                         <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-800 flex items-center justify-center mb-6">
                             <Play size={32} className="opacity-20" />
                         </div>
-                        <p className="text-xs font-bold uppercase tracking-[0.2em]">Select Hardware Buffer</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em]">Select Active Playlist</p>
                     </div>
                 )}
             </AnimatePresence>
@@ -331,7 +349,7 @@ export const PlayView: React.FC = () => {
                             />
                         </div>
                         <div className="flex-1 min-w-[200px] flex flex-col gap-2">
-                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Buffer Playlist</span>
+                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Current Sequence</span>
                             <select 
                                 value={schedPId} 
                                 onChange={(e) => setSchedPId(e.target.value)}
@@ -382,7 +400,7 @@ export const PlayView: React.FC = () => {
                           </button>
                       </div>
                   ))}
-                  {schedules.length === 0 && <p className="col-span-full text-[10px] font-bold uppercase tracking-[0.2em] text-center py-12 text-slate-700 border-2 border-dashed border-slate-800 rounded-2xl">Buffer scheduler empty</p>}
+                  {schedules.length === 0 && <p className="col-span-full text-[10px] font-bold uppercase tracking-[0.2em] text-center py-12 text-slate-700 border-2 border-dashed border-slate-800 rounded-2xl">No schedules programmed</p>}
               </div>
           </div>
 
@@ -399,13 +417,9 @@ export const PlayView: React.FC = () => {
                  <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping"></span>
                  {new Date().getSeconds().toString().padStart(2, '0')}
               </div>
-              <div className="mt-8 pt-8 border-t border-slate-800 w-full">
-                 <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-                    <span>Hardware Temp</span>
-                    <span className="text-teal-400">42°c</span>
-                 </div>
-                 <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                    <div className="h-full bg-teal-500/40 w-1/3"></div>
+              <div className="mt-8 pt-8 border-t border-slate-800 w-full opacity-50">
+                 <div className="flex justify-center items-center text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">
+                    <span>System Engine Active</span>
                  </div>
               </div>
           </div>
