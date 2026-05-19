@@ -53,14 +53,17 @@ export const PlayView: React.FC = () => {
 
     if (item.type === PlaylistItemType.AUDIO || item.type === PlaylistItemType.VIDEO) {
       if (item.sourceId) {
-        const fileData = await getFile(item.sourceId);
-        if (fileData) {
-          if (mediaUrl) URL.revokeObjectURL(mediaUrl);
-          const url = URL.createObjectURL(fileData.blob);
-          setMediaUrl(url);
-          
-          // Seeking logic moved to onLoadedMetadata for better reliability
-        } else {
+        try {
+          const fileData = await getFile(item.sourceId);
+          if (fileData) {
+            if (mediaUrl) URL.revokeObjectURL(mediaUrl);
+            const url = URL.createObjectURL(fileData.blob);
+            setMediaUrl(url);
+          } else {
+            setMediaUrl(null);
+          }
+        } catch (err) {
+          console.error("Error loading file:", err);
           setMediaUrl(null);
         }
       } else {
@@ -76,10 +79,10 @@ export const PlayView: React.FC = () => {
     if (item && item.start) {
         e.currentTarget.currentTime = item.start;
     }
+    // programmatically trigger play after metadata is ready if it should be playing
     if (isPlaying) {
         e.currentTarget.play().catch(err => {
             console.warn("Auto-play blocked after metadata load", err);
-            // Don't set isPlaying(false) here, let the user trigger play manually if needed
         });
     }
   };
@@ -97,22 +100,20 @@ export const PlayView: React.FC = () => {
 
   useEffect(() => {
     const media = audioRef.current || videoRef.current;
-    if (!media) return;
+    if (!media || !mediaUrl) return;
 
     if (isPlaying) {
-      const playPromise = media.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error("Playback failed:", error);
-          // Auto-play was probably blocked, or media not ready
-          // We don't forcefully set isPlaying(false) here because it causes flickering
-          // and prevents user from manually hitting play on the media controls.
+      // We use a small delay to ensure the DOM has updated and the browser context is ready
+      const timeoutId = setTimeout(() => {
+        media.play().catch(error => {
+          console.error("Manual play triggered fail:", error);
         });
-      }
+      }, 100);
+      return () => clearTimeout(timeoutId);
     } else {
       media.pause();
     }
-  }, [isPlaying, mediaUrl]);
+  }, [isPlaying, mediaUrl, currentItemIndex]);
 
   // Handle item completion
   const handleNext = useCallback(() => {
@@ -123,8 +124,11 @@ export const PlayView: React.FC = () => {
     if (currentRepeat < item.repeatCount) {
       setCurrentRepeat(prev => prev + 1);
       // Restart current media
-      if (audioRef.current) audioRef.current.currentTime = item.start;
-      if (videoRef.current) videoRef.current.currentTime = item.start;
+      const media = audioRef.current || videoRef.current;
+      if (media) {
+          media.currentTime = item.start || 0;
+          if (isPlaying) media.play().catch(() => {});
+      }
     } else {
       setCurrentRepeat(1);
       if (currentItemIndex < playlist.itemIds.length - 1) {
@@ -134,7 +138,7 @@ export const PlayView: React.FC = () => {
         setCurrentItemIndex(0);
       }
     }
-  }, [playlist, currentItemIndex, currentRepeat, items]);
+  }, [playlist, currentItemIndex, currentRepeat, items, isPlaying]);
 
   useEffect(() => {
     if (isPlaying && playlist?.itemIds[currentItemIndex]) {
@@ -210,7 +214,6 @@ export const PlayView: React.FC = () => {
                                 <audio 
                                     ref={audioRef}
                                     src={mediaUrl || ''}
-                                    autoPlay={isPlaying}
                                     onEnded={handleNext}
                                     onLoadedMetadata={onLoadedMetadata}
                                     onTimeUpdate={onTimeUpdate}
@@ -224,7 +227,7 @@ export const PlayView: React.FC = () => {
                                 <video 
                                     ref={videoRef}
                                     src={mediaUrl || ''}
-                                    autoPlay={isPlaying}
+                                    playsInline
                                     onEnded={handleNext}
                                     onLoadedMetadata={onLoadedMetadata}
                                     onTimeUpdate={onTimeUpdate}
@@ -312,7 +315,13 @@ export const PlayView: React.FC = () => {
                                     <span className="text-xs font-mono font-bold text-white">{s.time}</span>
                                     <span className="text-[9px] font-bold text-slate-600 uppercase truncate max-w-[80px]">{playlists[s.playlistId]?.name}</span>
                                 </div>
-                                <button onClick={() => removeSchedule(s.id)} className="text-slate-800 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><X size={14} /></button>
+                                <button 
+                                    onClick={() => removeSchedule(s.id)} 
+                                    className="text-slate-700 hover:text-red-500 transition-all p-1"
+                                    title="Delete Task"
+                                >
+                                    <X size={14} />
+                                </button>
                             </div>
                         ))}
                         {schedules.length === 0 && <p className="col-span-full text-[9px] font-bold text-slate-700 text-center py-4 border border-dashed border-slate-800 rounded-xl">No Pending Automations</p>}
