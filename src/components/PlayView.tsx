@@ -19,11 +19,18 @@ export const PlayView: React.FC = () => {
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [currentRepeat, setCurrentRepeat] = useState(1);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const playlist = activePlaylistId ? playlists[activePlaylistId] : null;
+
+  // Clock Update
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Cleanup effect
   useEffect(() => {
@@ -153,39 +160,56 @@ export const PlayView: React.FC = () => {
     <div className="flex flex-col h-full gap-8 bg-slate-950 overflow-y-auto custom-scrollbar">
       {/* Playback Area */}
       <div className="flex-1 flex flex-col lg:flex-row gap-8">
-        <div className="flex-1 bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-4 md:p-12 text-center shadow-2xl min-h-[400px]">
-            <AnimatePresence mode="wait">
-                {activePlaylistId ? (
-                    <motion.div 
-                        key={currentItemIndex}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 1.1 }}
-                        className="flex flex-col items-center w-full max-w-2xl px-2"
-                    >
-                        <div className="flex flex-row items-center gap-3 sm:gap-4 w-full justify-center mb-4">
-                                <div className={`w-12 h-12 md:w-24 md:h-24 shrink-0 rounded-full border-2 md:border-4 border-orange-500 flex items-center justify-center bg-orange-500/10 text-orange-500 text-xl md:text-4xl font-black shadow-[0_0_20px_rgba(249,115,22,0.15)]`}>
-                                    {currentItemIndex + 1 < 10 ? `0${currentItemIndex + 1}` : currentItemIndex + 1}
-                                </div>
-                                <div className="text-left truncate flex-1 max-w-md">
-                                    <h2 className="text-base md:text-2xl font-bold tracking-tight uppercase italic truncate">{items[playlist?.itemIds[currentItemIndex]!]?.title}</h2>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
-                                            Loop {currentRepeat} / {items[playlist?.itemIds[currentItemIndex]!]?.repeatCount}
-                                        </span>
-                                        <span className="text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-                                            {items[playlist?.itemIds[currentItemIndex]!]?.type}
-                                        </span>
+        <div className="flex-1 flex flex-col gap-6">
+            <div className="bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-4 md:p-12 text-center shadow-2xl min-h-[400px]">
+                {/* Animated Info Section */}
+                <div className="w-full max-w-2xl px-2 mb-4">
+                    <AnimatePresence mode="wait">
+                        {activePlaylistId ? (
+                            <motion.div 
+                                key={currentItemIndex}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.3 }}
+                                className="flex flex-col items-center w-full"
+                            >
+                                <div className="flex flex-row items-center gap-3 sm:gap-4 w-full justify-center mb-4">
+                                    <div className={`w-12 h-12 md:w-24 md:h-24 shrink-0 rounded-full border-2 md:border-4 border-orange-500 flex items-center justify-center bg-orange-500/10 text-orange-500 text-xl md:text-4xl font-black shadow-[0_0_20px_rgba(249,115,22,0.15)]`}>
+                                        {currentItemIndex + 1 < 10 ? `0${currentItemIndex + 1}` : currentItemIndex + 1}
+                                    </div>
+                                    <div className="text-left truncate flex-1 max-w-md">
+                                        <h2 className="text-base md:text-2xl font-bold tracking-tight uppercase italic truncate">{items[playlist?.itemIds[currentItemIndex]!]?.title}</h2>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
+                                                Loop {currentRepeat} / {items[playlist?.itemIds[currentItemIndex]!]?.repeatCount}
+                                            </span>
+                                            <span className="text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                                                {items[playlist?.itemIds[currentItemIndex]!]?.type}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
+                            </motion.div>
+                        ) : (
+                            <div className="text-slate-700 flex flex-col items-center">
+                                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-800 flex items-center justify-center mb-6">
+                                    <Play size={32} className="opacity-20" />
+                                </div>
+                                <p className="text-xs font-bold uppercase tracking-[0.2em]">Select Active Playlist</p>
                             </div>
-                        
-                        {/* Media Players */}
+                        )}
+                    </AnimatePresence>
+                </div>
+                
+                {/* Stable Media Player Area */}
+                {activePlaylistId && (
+                    <div className="w-full max-w-2xl px-2">
                         <div className="w-full bg-slate-950 p-2 md:p-6 rounded-2xl border border-slate-800 shadow-inner">
-                            {mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.AUDIO && (
+                            {items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.AUDIO && (
                                 <audio 
                                     ref={audioRef}
-                                    src={mediaUrl}
+                                    src={mediaUrl || ''}
                                     autoPlay={isPlaying}
                                     onEnded={handleNext}
                                     onLoadedMetadata={onLoadedMetadata}
@@ -196,16 +220,16 @@ export const PlayView: React.FC = () => {
                                     onPause={() => setIsPlaying(false)}
                                 />
                             )}
-                            {mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.VIDEO && (
+                            {items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.VIDEO && (
                                 <video 
                                     ref={videoRef}
-                                    src={mediaUrl}
+                                    src={mediaUrl || ''}
                                     autoPlay={isPlaying}
                                     onEnded={handleNext}
                                     onLoadedMetadata={onLoadedMetadata}
                                     onTimeUpdate={onTimeUpdate}
                                     controls
-                                    className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[40vh] md:max-h-[500px] bg-black"
+                                    className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[40vh] md:max-h-[350px] bg-black"
                                     onPlay={() => setIsPlaying(true)}
                                     onPause={() => setIsPlaying(false)}
                                 />
@@ -213,45 +237,93 @@ export const PlayView: React.FC = () => {
                             {items[playlist?.itemIds[currentItemIndex]!]?.type === PlaylistItemType.SILENCE && (
                                 <div className="p-12 border-2 border-dashed border-slate-800 rounded-xl bg-slate-900/50">
                                     <VolumeX size={40} className="mx-auto mb-4 text-indigo-500 opacity-50" />
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400">Silent Sequence Active</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400">Silence Active</p>
                                     <p className="text-3xl font-mono mt-2 text-white">{items[playlist?.itemIds[currentItemIndex]!]?.duration}s</p>
                                 </div>
                             )}
 
-                            {/* Custom Playback Progress Overlay */}
                             {!mediaUrl && items[playlist?.itemIds[currentItemIndex]!]?.type !== PlaylistItemType.SILENCE && (
-                                <div className="p-8 border-2 border-dashed border-red-500/20 rounded-xl bg-red-500/5">
-                                    <div className="text-red-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
-                                        <VolumeX size={14} /> Source Missing
-                                    </div>
-                                    <div className="text-slate-500 text-[10px] leading-relaxed">
-                                        The media file for this item is not available in local storage.<br/>
-                                        This often happens with imported M3U lists or cleared browser data.
-                                    </div>
-                                    <button 
-                                        onClick={handleNext}
-                                        className="mt-4 text-[10px] font-bold text-orange-500 hover:text-white transition-colors uppercase tracking-widest"
-                                    >
-                                        Skip to Next →
-                                    </button>
+                                <div className="p-4 bg-red-500/5 rounded-xl border border-red-500/10">
+                                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest text-center">Source File Missing</p>
+                                    <button onClick={handleNext} className="mt-2 block mx-auto text-[10px] font-bold text-orange-500">Skip Track →</button>
                                 </div>
                             )}
                         </div>
-                    </motion.div>
-                ) : (
-                    <div className="text-slate-700 flex flex-col items-center">
-                        <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-800 flex items-center justify-center mb-6">
-                            <Play size={32} className="opacity-20" />
-                        </div>
-                        <p className="text-xs font-bold uppercase tracking-[0.2em]">Select Active Playlist</p>
                     </div>
                 )}
-            </AnimatePresence>
+            </div>
+
+            {/* Optimized Sync & Scheduler Card */}
+            <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-xl overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-800/50 min-h-[160px]">
+                <div className="p-6 md:w-56 bg-slate-950/20 flex flex-col items-center justify-center text-center relative group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-orange-500/50"></div>
+                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-[.3em] mb-2 px-1">Sync Master</span>
+                    <div className="text-4xl font-black font-mono tracking-tighter text-white tabular-nums drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                        {currentTime.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-orange-500 text-sm ml-1 opacity-80 animate-pulse">:{currentTime.getSeconds().toString().padStart(2, '0')}</span>
+                    </div>
+                </div>
+
+                <div className="flex-1 p-6 relative">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <Calendar size={14} className="text-teal-500" />
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Scheduler</span>
+                        </div>
+                        <button 
+                            onClick={() => setShowScheduleForm(!showScheduleForm)}
+                            className="bg-slate-950 px-3 py-1 border border-slate-800 rounded-lg text-[9px] font-black uppercase text-orange-500 hover:text-white transition-all"
+                        >
+                            {showScheduleForm ? 'Hide' : '+ New Task'}
+                        </button>
+                    </div>
+
+                    {showScheduleForm && (
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="mb-4 space-y-4 p-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl relative z-10"
+                        >
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Day</span>
+                                    <select value={schedDay} onChange={(e) => setSchedDay(parseInt(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white">
+                                        {days.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Time</span>
+                                    <input type="time" value={schedTime} onChange={(e) => setSchedTime(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white" />
+                                </div>
+                            </div>
+                            <select value={schedPId} onChange={(e) => setSchedPId(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white">
+                                <option value="">Target Sequence...</option>
+                                {Object.values(playlists).map((p: any) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+                            </select>
+                            <button onClick={() => { if (schedPId) { addSchedule({ day: schedDay, time: schedTime, playlistId: schedPId, active: true }); setShowScheduleForm(false); } }} className="w-full bg-teal-500 text-slate-950 rounded-lg py-2 text-[10px] font-black uppercase tracking-widest hover:bg-teal-400">Save Operation</button>
+                        </motion.div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                        {schedules.map(s => (
+                            <div key={s.id} className="flex items-center justify-between p-2 bg-slate-950/40 rounded-xl border border-slate-800/30 group">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-black text-orange-500/80 uppercase">{days[s.day].slice(0,3)}</span>
+                                    <span className="text-xs font-mono font-bold text-white">{s.time}</span>
+                                    <span className="text-[9px] font-bold text-slate-600 uppercase truncate max-w-[80px]">{playlists[s.playlistId]?.name}</span>
+                                </div>
+                                <button onClick={() => removeSchedule(s.id)} className="text-slate-800 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><X size={14} /></button>
+                            </div>
+                        ))}
+                        {schedules.length === 0 && <p className="col-span-full text-[9px] font-bold text-slate-700 text-center py-4 border border-dashed border-slate-800 rounded-xl">No Pending Automations</p>}
+                    </div>
+                </div>
+            </div>
         </div>
 
         {/* Playlist Selection and Queue */}
-        <div className="w-full lg:w-96 flex flex-col gap-6">
-            <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl leading-relaxed min-h-[300px]">
+        <div className="w-full lg:w-96 flex flex-col gap-4">
+            <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl leading-relaxed min-h-[250px] flex-1">
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active sequence</span>
                     <div className="flex gap-1">
@@ -339,123 +411,6 @@ export const PlayView: React.FC = () => {
         </div>
       </div>
 
-      {/* Scheduling & Stats Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          <div className="xl:col-span-2 bg-slate-900 rounded-3xl border border-slate-800 p-8 shadow-xl">
-              <div className="flex justify-between items-center mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Execution Scheduler</span>
-                </div>
-                <button 
-                    onClick={() => setShowScheduleForm(true)}
-                    className="text-[10px] font-bold uppercase tracking-[.2em] text-orange-500 hover:text-white transition-colors"
-                >
-                    + NEW TASK
-                </button>
-              </div>
-
-                {showScheduleForm && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-slate-950 p-6 rounded-2xl border border-slate-800 mb-8 flex flex-wrap gap-6 items-end"
-                    >
-                        <div className="flex-1 min-w-[150px] flex flex-col gap-2">
-                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Occurrence Day</span>
-                            <select 
-                                value={schedDay} 
-                                onChange={(e) => setSchedDay(parseInt(e.target.value))}
-                                className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-orange-500/30"
-                            >
-                                {days.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                            </select>
-                        </div>
-                        <div className="w-32 flex flex-col gap-2">
-                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Time</span>
-                            <input 
-                                type="time" 
-                                value={schedTime} 
-                                onChange={(e) => setSchedTime(e.target.value)}
-                                className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-orange-500/30"
-                            />
-                        </div>
-                        <div className="flex-1 min-w-[200px] flex flex-col gap-2">
-                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Current Sequence</span>
-                            <select 
-                                value={schedPId} 
-                                onChange={(e) => setSchedPId(e.target.value)}
-                                className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-bold w-full focus:outline-none focus:ring-1 focus:ring-orange-500/30"
-                            >
-                                <option value="">Select Target...</option>
-                                {Object.values(playlists).map((p: any) => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => {
-                                    if (schedPId) {
-                                        addSchedule({ day: schedDay, time: schedTime, playlistId: schedPId, active: true });
-                                        setShowScheduleForm(false);
-                                    }
-                                }}
-                                className="w-10 h-10 bg-teal-500 text-slate-950 rounded-xl flex items-center justify-center hover:bg-teal-400"
-                            >
-                                <Check size={20} strokeWidth={3} />
-                            </button>
-                            <button 
-                                onClick={() => setShowScheduleForm(false)}
-                                className="w-10 h-10 bg-slate-800 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-700"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {schedules.map(s => (
-                      <div key={s.id} className="flex items-center justify-between p-5 bg-slate-950 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors">
-                          <div className="flex items-center gap-4">
-                              <div className="bg-teal-500/10 px-3 py-1.5 rounded-lg text-teal-500 text-[10px] font-bold uppercase tracking-widest border border-teal-500/20">
-                                  {days[s.day].slice(0, 3)}
-                              </div>
-                              <div>
-                                  <div className="text-xl font-bold font-mono tracking-tighter text-white">{s.time}</div>
-                                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[120px]">{playlists[s.playlistId]?.name}</div>
-                              </div>
-                          </div>
-                          <button onClick={() => removeSchedule(s.id)} className="text-slate-700 hover:text-red-500 p-2 transition-colors">
-                              <X size={18} />
-                          </button>
-                      </div>
-                  ))}
-                  {schedules.length === 0 && <p className="col-span-full text-[10px] font-bold uppercase tracking-[0.2em] text-center py-12 text-slate-700 border-2 border-dashed border-slate-800 rounded-2xl">No schedules programmed</p>}
-              </div>
-          </div>
-
-          <div className="bg-slate-900 rounded-3xl border border-slate-800 p-8 flex flex-col items-center justify-center text-center shadow-xl relative overflow-hidden">
-              {/* Decorative items */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2"></div>
-              
-              <Clock size={48} className="text-slate-700 mb-6" />
-              <h3 className="text-[10px] font-bold text-orange-500 uppercase tracking-[.3em] mb-4">Master Sync Clock</h3>
-              <div className="text-6xl font-black font-mono tracking-tighter text-white tabular-nums">
-                  {new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}
-              </div>
-              <div className="text-orange-500/50 text-xl font-mono mt-2 flex items-center gap-2">
-                 <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping"></span>
-                 {new Date().getSeconds().toString().padStart(2, '0')}
-              </div>
-              <div className="mt-8 pt-8 border-t border-slate-800 w-full opacity-50">
-                 <div className="flex justify-center items-center text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-                    <span>System Engine Active</span>
-                 </div>
-              </div>
-          </div>
-      </div>
     </div>
   );
 };
