@@ -57,18 +57,11 @@ export const PlayView: React.FC = () => {
   }, []);
 
   // Safe object URL management
-  const updateMediaUrl = useCallback((newUrl: string | null) => {
-    if (previousUrlRef.current) {
-        URL.revokeObjectURL(previousUrlRef.current);
-    }
-    previousUrlRef.current = mediaUrl;
-    setMediaUrl(newUrl);
-  }, [mediaUrl]);
-
   useEffect(() => {
     return () => {
-      if (mediaUrl) URL.revokeObjectURL(mediaUrl);
-      if (previousUrlRef.current) URL.revokeObjectURL(previousUrlRef.current);
+      if (mediaUrl) {
+        URL.revokeObjectURL(mediaUrl);
+      }
     };
   }, [mediaUrl]);
 
@@ -81,10 +74,10 @@ export const PlayView: React.FC = () => {
   const loadItem = useCallback(async () => {
     const loadId = ++loadIdRef.current;
     
-    if (!currentItem) {
-        updateMediaUrl(null);
-        return;
-    }
+    // Reset mediaUrl immediately when item changes to stop previous playback
+    setMediaUrl(null);
+
+    if (!currentItem) return;
 
     if (currentItem.type === PlaylistItemType.AUDIO || currentItem.type === PlaylistItemType.VIDEO) {
       if (currentItem.sourceId) {
@@ -95,28 +88,22 @@ export const PlayView: React.FC = () => {
 
           if (fileData) {
             const url = URL.createObjectURL(fileData.blob);
-            updateMediaUrl(url);
-          } else {
-            updateMediaUrl(null);
+            setMediaUrl(url);
           }
         } catch (err) {
           console.error("Error loading file:", err);
-          updateMediaUrl(null);
         }
-      } else {
-        updateMediaUrl(null);
       }
-    } else {
-        updateMediaUrl(null);
     }
-  }, [currentItem, updateMediaUrl]);
+  }, [currentItem]);
 
   const onLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    const media = e.currentTarget;
     if (currentItem && currentItem.start) {
-        e.currentTarget.currentTime = currentItem.start;
+        media.currentTime = currentItem.start;
     }
     if (isPlaying) {
-        e.currentTarget.play().catch(err => {
+        media.play().catch(err => {
             console.warn("Auto-play blocked after metadata load", err);
         });
     }
@@ -132,21 +119,25 @@ export const PlayView: React.FC = () => {
     loadItem();
   }, [loadItem]);
 
+  // Handle play/pause commands from isPlaying state
   useEffect(() => {
     const media = currentItem?.type === PlaylistItemType.AUDIO ? audioRef.current : videoRef.current;
     if (!media || !mediaUrl) return;
 
     if (isPlaying) {
-      const timeoutId = setTimeout(() => {
-        media.play().catch(error => {
-          console.error("Playback failed:", error);
+      // Small buffer to ensure browser is ready
+      const playPromise = media.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          if (error.name !== 'AbortError') {
+             console.error("Playback failed:", error);
+          }
         });
-      }, 100);
-      return () => clearTimeout(timeoutId);
+      }
     } else {
       media.pause();
     }
-  }, [isPlaying, mediaUrl, currentItemIndex, currentItem]);
+  }, [isPlaying, mediaUrl, currentItem]);
 
   // Handle item completion
   const handleNext = useCallback(() => {

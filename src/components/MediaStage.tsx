@@ -35,14 +35,14 @@ export const MediaStage: React.FC<MediaStageProps> = ({
   return (
     <div className="bg-slate-900 rounded-3xl border border-slate-800 relative overflow-hidden flex flex-col items-center justify-center p-4 md:p-12 text-center shadow-2xl min-h-[400px]">
         {/* Animated Info Section */}
-        <div className="w-full max-w-2xl px-2 mb-4">
-            <AnimatePresence mode="wait">
+        <div className="w-full max-w-2xl px-2 mb-4 relative min-h-[80px] flex items-center justify-center">
+            <AnimatePresence>
                 {activePlaylistId ? (
                     <motion.div 
                         key={currentItemIndex}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
+                        exit={{ opacity: 0, y: -10, position: 'absolute' }}
                         transition={{ duration: 0.3 }}
                         className="flex flex-col items-center w-full"
                     >
@@ -88,7 +88,9 @@ export const MediaStage: React.FC<MediaStageProps> = ({
                             controls
                             className="w-full accent-orange-500 h-10"
                             onPlay={() => setIsPlaying(true)}
-                            onPause={() => setIsPlaying(false)}
+                            onPause={() => {
+                                if (mediaUrl) setIsPlaying(false);
+                            }}
                             id="audio-player"
                         />
                     )}
@@ -103,7 +105,9 @@ export const MediaStage: React.FC<MediaStageProps> = ({
                             controls
                             className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[40vh] md:max-h-[350px] bg-black"
                             onPlay={() => setIsPlaying(true)}
-                            onPause={() => setIsPlaying(false)}
+                            onPause={() => {
+                                if (mediaUrl) setIsPlaying(false);
+                            }}
                             id="video-player"
                         />
                     )}
@@ -116,9 +120,20 @@ export const MediaStage: React.FC<MediaStageProps> = ({
                     )}
 
                     {!mediaUrl && currentItem?.type !== PlaylistItemType.SILENCE && (
-                        <div className="p-4 bg-red-500/5 rounded-xl border border-red-500/10">
-                            <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest text-center">Source File Missing</p>
-                            <button onClick={handleNext} className="mt-2 block mx-auto text-[10px] font-bold text-orange-500" id="skip-missing-btn">Skip Track →</button>
+                        <div className="p-12 flex flex-col items-center justify-center">
+                            {!currentItem?.sourceId ? (
+                                <>
+                                    <div className="p-4 bg-red-500/5 rounded-xl border border-red-500/10 mb-4">
+                                        <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest text-center">No Source File Connected</p>
+                                    </div>
+                                    <button onClick={handleNext} className="text-[10px] font-bold text-orange-500 hover:text-white transition-colors" id="skip-missing-btn">Skip Track →</button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Loading Source...</p>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
