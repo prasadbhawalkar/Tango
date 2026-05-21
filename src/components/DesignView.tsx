@@ -80,6 +80,22 @@ export const DesignView: React.FC = () => {
     }
   };
 
+  const getMediaDuration = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const element = document.createElement(file.type.startsWith('audio') ? 'audio' : 'video');
+      element.preload = 'metadata';
+      element.onloadedmetadata = () => {
+        resolve(element.duration || 0);
+        URL.revokeObjectURL(element.src);
+      };
+      element.onerror = () => {
+        resolve(0);
+        URL.revokeObjectURL(element.src);
+      };
+      element.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !selectedPlaylistId) return;
@@ -88,18 +104,16 @@ export const DesignView: React.FC = () => {
       const sourceId = await saveFile(file);
       const id = crypto.randomUUID();
       
-      // Determine duration (approximate or use a dummy for now, ideally use a helper to get real duration)
-      // For simplicity in this demo, let's assume 180s for audio and 300s for video
-      const duration = file.type.startsWith('audio') ? 180 : 300;
+      const duration = await getMediaDuration(file);
 
       const item = {
         id,
         type: file.type.startsWith('audio') ? PlaylistItemType.AUDIO : PlaylistItemType.VIDEO,
         title: file.name,
         sourceId,
-        duration,
+        duration: Math.round(duration),
         start: 0,
-        end: duration,
+        end: Math.round(duration) || (file.type.startsWith('audio') ? 180 : 300),
         repeatCount: 1,
       };
 

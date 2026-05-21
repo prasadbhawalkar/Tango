@@ -65,12 +65,13 @@ export const PlaylistItemEditor: React.FC<Props> = ({ item, onUpdate, onDelete, 
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <input
-            type="number"
-            min="1"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-lg text-center focus:outline-none focus:ring-2 focus:ring-white/20 transition-all cursor-pointer ${typeStyles[item.type]}`}
             value={currentIndex + 1}
             onChange={(e) => {
-              const val = parseInt(e.target.value);
+              const val = parseInt(e.target.value.replace(/[^0-9]/g, ''));
               if (!isNaN(val)) onReorder(val - 1);
             }}
           />
@@ -95,13 +96,17 @@ export const PlaylistItemEditor: React.FC<Props> = ({ item, onUpdate, onDelete, 
           </label>
           <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
               <div className="flex-1 flex items-center px-3 gap-2">
-                <span className="text-[10px] text-slate-500 font-bold">X</span>
+                <span className="text-[10px] text-slate-500 font-bold shrink-0">PLAYS:</span>
                 <input
-                  type="number"
-                  min="1"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={item.repeatCount}
-                  onChange={(e) => onUpdate({ repeatCount: parseInt(e.target.value) || 1 })}
-                  className="w-full bg-transparent text-center font-bold text-sm focus:outline-none"
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value.replace(/[^0-9]/g, ''));
+                    onUpdate({ repeatCount: isNaN(val) ? 1 : Math.max(1, val) });
+                  }}
+                  className="w-full bg-transparent text-left font-bold text-sm focus:outline-none text-teal-400"
                 />
               </div>
           </div>
