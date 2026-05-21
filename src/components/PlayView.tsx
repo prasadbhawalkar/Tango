@@ -14,23 +14,71 @@ export const PlayView: React.FC = () => {
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
-  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+  const [queueIndex, setQueueIndex] = useState(0);
   const [currentRepeat, setCurrentRepeat] = useState(1);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  
+
+  const lastHandledRef = useRef<string>('');
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const loadIdRef = useRef(0);
   const previousUrlRef = useRef<string | null>(null);
   const lastScheduledIdRef = useRef<string | null>(null);
 
-  const playlist = activePlaylistId ? playlists[activePlaylistId] : null;
+  // Flattened queue structure
+  const flatQueue = React.useMemo(() => {
+    if (!activePlaylistId || !playlists[activePlaylistId]) return [];
+
+    const getFlattenedItems = (pId: string, topIdx: number): { itemId: string; topIdx: number }[] => {
+      const pl = playlists[pId];
+      if (!pl) return [];
+      let expanded: { itemId: string; topIdx: number }[] = [];
+      pl.itemIds.forEach((id) => {
+        const item = items[id];
+        if (!item) return;
+        if (item.type === PlaylistItemType.PLAYLIST && item.playlistId) {
+          for (let i = 0; i < item.repeatCount; i++) {
+            expanded = [...expanded, ...getFlattenedItems(item.playlistId, topIdx)];
+          }
+        } else {
+          expanded.push({ itemId: id, topIdx });
+        }
+      });
+      return expanded;
+    };
+
+    const root = playlists[activePlaylistId];
+    let result: { itemId: string; topIdx: number }[] = [];
+    root.itemIds.forEach((id, idx) => {
+        const item = items[id];
+        if (!item) return;
+        if (item.type === PlaylistItemType.PLAYLIST && item.playlistId) {
+            for (let i = 0; i < item.repeatCount; i++) {
+                result = [...result, ...getFlattenedItems(item.playlistId, idx)];
+            }
+        } else {
+            result.push({ itemId: id, topIdx: idx });
+        }
+    });
+    return result;
+  }, [activePlaylistId, playlists, items]);
 
   const currentItem = React.useMemo(() => {
-    const itemId = playlist?.itemIds[currentItemIndex];
-    return itemId ? items[itemId] : null;
-  }, [playlist, currentItemIndex, items]);
+    const queueEntry = flatQueue[queueIndex];
+    return queueEntry ? items[queueEntry.itemId] : null;
+  }, [flatQueue, queueIndex, items]);
+
+  const topLevelActiveIndex = flatQueue[queueIndex]?.topIdx ?? -1;
+
+  const onTopLevelItemClick = useCallback((idx: number) => {
+    const qIdx = flatQueue.findIndex(q => q.topIdx === idx);
+    if (qIdx !== -1) {
+        setQueueIndex(qIdx);
+        setCurrentRepeat(1);
+    }
+  }, [flatQueue]);
 
   // Scheduler Engine
   useEffect(() => {
@@ -44,7 +92,7 @@ export const PlayView: React.FC = () => {
     if (trigger && lastScheduledIdRef.current !== `${trigger.id}-${timeStr}`) {
         lastScheduledIdRef.current = `${trigger.id}-${timeStr}`;
         setActivePlaylistId(trigger.playlistId);
-        setCurrentItemIndex(0);
+        setQueueIndex(0);
         setCurrentRepeat(1);
         setIsPlaying(true);
     }
@@ -111,8 +159,12 @@ export const PlayView: React.FC = () => {
 
   const onTimeUpdate = (e: React.SyntheticEvent<HTMLMediaElement>) => {
     if (isPlaying && currentItem && currentItem.end && e.currentTarget.currentTime >= currentItem.end) {
-        handleNext();
+        handleNext(queueIndex, currentRepeat);
     }
+  };
+
+  const onMediaEnded = () => {
+    handleNext(queueIndex, currentRepeat);
   };
 
   useEffect(() => {
@@ -129,7 +181,7 @@ export const PlayView: React.FC = () => {
       const playPromise = media.play();
       if (playPromise !== undefined) {
         playPromise.catch(error => {
-          if (error.name !== 'AbortError') {
+          if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
              console.error("Playback failed:", error);
           }
         });
@@ -137,23 +189,36 @@ export const PlayView: React.FC = () => {
     } else {
       media.pause();
     }
-  }, [isPlaying, mediaUrl, currentItem]);
+  }, [isPlaying, mediaUrl, currentItem, currentRepeat, queueIndex]);
 
   // Handle item completion
-  const handleNext = useCallback(() => {
-    if (!playlist || !currentItem) return;
+  const handleNext = useCallback((targetIndex?: number | React.BaseSyntheticEvent, targetRepeat?: number) => {
+    // If targets are provided as numbers, verify they match current state to avoid race conditions/skipping
+    // Events might be passed if called directly from onClick
+    const verifiedIndex = typeof targetIndex === 'number' ? targetIndex : undefined;
+    if (verifiedIndex !== undefined && verifiedIndex !== queueIndex) return;
+    if (targetRepeat !== undefined && targetRepeat !== currentRepeat) return;
+
+    if (!flatQueue.length || !currentItem) return;
+
+    // Prevent double triggering for the same item/repeat
+    const currentId = `${queueIndex}-${currentRepeat}`;
+    if (lastHandledRef.current === currentId) return;
+    lastHandledRef.current = currentId;
 
     if (currentRepeat < currentItem.repeatCount) {
       setCurrentRepeat(prev => prev + 1);
       const media = currentItem.type === PlaylistItemType.AUDIO ? audioRef.current : videoRef.current;
       if (media) {
           media.currentTime = currentItem.start || 0;
-          if (isPlaying) media.play().catch(() => {});
+          if (isPlaying) {
+            media.play().catch(() => {});
+          }
       }
     } else {
       setCurrentRepeat(1);
-      setCurrentItemIndex(prev => {
-          if (prev < playlist.itemIds.length - 1) {
+      setQueueIndex(prev => {
+          if (prev < flatQueue.length - 1) {
               return prev + 1;
           } else {
               setIsPlaying(false);
@@ -161,16 +226,18 @@ export const PlayView: React.FC = () => {
           }
       });
     }
-  }, [playlist, currentItem, currentRepeat, isPlaying]);
+  }, [flatQueue, currentItem, currentRepeat, isPlaying, queueIndex]);
 
   useEffect(() => {
     if (isPlaying && currentItem) {
         if (currentItem.type === PlaylistItemType.SILENCE) {
-            const timer = setTimeout(handleNext, currentItem.duration * 1000);
+            const currentIdx = queueIndex;
+            const currentRep = currentRepeat;
+            const timer = setTimeout(() => handleNext(currentIdx, currentRep), currentItem.duration * 1000);
             return () => clearTimeout(timer);
         }
     }
-  }, [isPlaying, currentItem, handleNext]);
+  }, [isPlaying, currentItem, handleNext, queueIndex, currentRepeat]);
 
   // Scheduling state
   const [showScheduleForm, setShowScheduleForm] = useState(false);
@@ -185,7 +252,7 @@ export const PlayView: React.FC = () => {
             <MediaStage 
                 activePlaylistId={activePlaylistId}
                 currentItem={currentItem}
-                currentItemIndex={currentItemIndex}
+                currentItemIndex={topLevelActiveIndex}
                 currentRepeat={currentRepeat}
                 mediaUrl={mediaUrl}
                 isPlaying={isPlaying}
@@ -194,6 +261,7 @@ export const PlayView: React.FC = () => {
                 videoRef={videoRef}
                 onLoadedMetadata={onLoadedMetadata}
                 onTimeUpdate={onTimeUpdate}
+                onEnded={onMediaEnded}
                 handleNext={handleNext}
             />
 
@@ -220,8 +288,8 @@ export const PlayView: React.FC = () => {
             items={items}
             activePlaylistId={activePlaylistId}
             setActivePlaylistId={setActivePlaylistId}
-            currentItemIndex={currentItemIndex}
-            setCurrentItemIndex={setCurrentItemIndex}
+            topLevelActiveIndex={topLevelActiveIndex}
+            onTopLevelItemClick={onTopLevelItemClick}
             setCurrentRepeat={setCurrentRepeat}
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}

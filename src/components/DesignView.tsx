@@ -347,7 +347,21 @@ export const DesignView: React.FC = () => {
                     key={itemId}
                     currentIndex={index}
                     item={items[itemId]}
-                    onUpdate={(upd) => updateItem(itemId, upd)}
+                    onUpdate={(upd) => {
+                      if ((upd as any)._duplicate) {
+                        const original = items[itemId];
+                        const newId = crypto.randomUUID();
+                        const clone = { ...original, id: newId };
+                        addItem(clone);
+                        const newIds = [...activePlaylist.itemIds];
+                        newIds.splice(index + 1, 0, newId);
+                        updatePlaylist(activePlaylist.id, {
+                          itemIds: newIds
+                        });
+                      } else {
+                        updateItem(itemId, upd);
+                      }
+                    }}
                     onDelete={() => deleteItem(itemId, activePlaylist.id)}
                     onReorder={(newIdx) => {
                       const newIds = [...activePlaylist.itemIds];

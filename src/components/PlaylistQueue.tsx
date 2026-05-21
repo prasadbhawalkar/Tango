@@ -7,12 +7,12 @@ interface PlaylistQueueProps {
   items: Record<string, PlaylistItem>;
   activePlaylistId: string | null;
   setActivePlaylistId: (id: string) => void;
-  currentItemIndex: number;
-  setCurrentItemIndex: (index: number) => void;
+  topLevelActiveIndex: number;
+  onTopLevelItemClick: (index: number) => void;
   setCurrentRepeat: (repeat: number) => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
-  handleNext: () => void;
+  handleNext: (targetIndex?: number, targetRepeat?: number) => void;
   volume: number;
   setVolume: (v: number) => void;
 }
@@ -22,8 +22,8 @@ export const PlaylistQueue: React.FC<PlaylistQueueProps> = ({
   items,
   activePlaylistId,
   setActivePlaylistId,
-  currentItemIndex,
-  setCurrentItemIndex,
+  topLevelActiveIndex,
+  onTopLevelItemClick,
   setCurrentRepeat,
   isPlaying,
   setIsPlaying,
@@ -50,7 +50,7 @@ export const PlaylistQueue: React.FC<PlaylistQueueProps> = ({
                         value={activePlaylistId || ''} 
                         onChange={(e) => {
                             setActivePlaylistId(e.target.value);
-                            setCurrentItemIndex(0);
+                            onTopLevelItemClick(0);
                             setCurrentRepeat(1);
                             setIsPlaying(true);
                         }}
@@ -74,13 +74,14 @@ export const PlaylistQueue: React.FC<PlaylistQueueProps> = ({
                     <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar">
                         {currentPlaylist.itemIds.map((itemId, idx) => {
                             const item = items[itemId];
-                            const isActive = idx === currentItemIndex;
-                            const isPlayed = idx < currentItemIndex;
+                            const isActive = idx === topLevelActiveIndex;
+                            const isPlayed = idx < topLevelActiveIndex;
 
                             return (
                                 <div 
                                     key={`${itemId}-${idx}`}
-                                    className={`group flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 ${
+                                    onClick={() => onTopLevelItemClick(idx)}
+                                    className={`group flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
                                         isActive 
                                         ? 'bg-orange-500 border-orange-400 shadow-[0_4px_20px_rgba(249,115,22,0.3)] scale-[1.02]' 
                                         : 'bg-slate-950 border-slate-800 hover:border-slate-700'
@@ -131,7 +132,15 @@ export const PlaylistQueue: React.FC<PlaylistQueueProps> = ({
         {/* Global Controls */}
         <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl">
             <div className="flex justify-around items-center">
-                <button onClick={() => setCurrentItemIndex(Math.max(0, currentItemIndex - 1))} className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all hover:bg-slate-800 rounded-full" id="prev-btn">
+                <button 
+                    onClick={() => {
+                        if (topLevelActiveIndex > 0) {
+                            onTopLevelItemClick(topLevelActiveIndex - 1);
+                        }
+                    }} 
+                    className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all hover:bg-slate-800 rounded-full" 
+                    id="prev-btn"
+                >
                     <SkipBack size={24} />
                 </button>
                 <button 

@@ -15,7 +15,8 @@ interface MediaStageProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onLoadedMetadata: (e: React.SyntheticEvent<HTMLMediaElement>) => void;
   onTimeUpdate: (e: React.SyntheticEvent<HTMLMediaElement>) => void;
-  handleNext: () => void;
+  onEnded: () => void;
+  handleNext: (targetIndex?: number, targetRepeat?: number) => void;
 }
 
 export const MediaStage: React.FC<MediaStageProps> = ({
@@ -30,6 +31,7 @@ export const MediaStage: React.FC<MediaStageProps> = ({
   videoRef,
   onLoadedMetadata,
   onTimeUpdate,
+  onEnded,
   handleNext,
 }) => {
   return (
@@ -81,10 +83,11 @@ export const MediaStage: React.FC<MediaStageProps> = ({
                     {currentItem?.type === PlaylistItemType.AUDIO && (
                         <audio 
                             ref={audioRef}
-                            src={mediaUrl || ''}
-                            onEnded={handleNext}
+                            src={mediaUrl ?? undefined}
+                            onEnded={onEnded}
                             onLoadedMetadata={onLoadedMetadata}
                             onTimeUpdate={onTimeUpdate}
+                            autoPlay={isPlaying}
                             controls
                             className="w-full accent-orange-500 h-10"
                             onPlay={() => setIsPlaying(true)}
@@ -97,11 +100,12 @@ export const MediaStage: React.FC<MediaStageProps> = ({
                     {currentItem?.type === PlaylistItemType.VIDEO && (
                         <video 
                             ref={videoRef}
-                            src={mediaUrl || ''}
+                            src={mediaUrl ?? undefined}
                             playsInline
-                            onEnded={handleNext}
+                            onEnded={onEnded}
                             onLoadedMetadata={onLoadedMetadata}
                             onTimeUpdate={onTimeUpdate}
+                            autoPlay={isPlaying}
                             controls
                             className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[40vh] md:max-h-[350px] bg-black"
                             onPlay={() => setIsPlaying(true)}
