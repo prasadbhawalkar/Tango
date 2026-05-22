@@ -18,6 +18,13 @@ export const PlayView: React.FC = () => {
   const [currentRepeat, setCurrentRepeat] = useState(1);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isTransitioning, setIsTransitioningState] = useState(false);
+  const isTransitioningRef = useRef(false);
+
+  const setIsTransitioning = useCallback((val: boolean) => {
+    setIsTransitioningState(val);
+    isTransitioningRef.current = val;
+  }, []);
 
   const lastHandledRef = useRef<string>('');
 
@@ -75,6 +82,7 @@ export const PlayView: React.FC = () => {
   const onTopLevelItemClick = useCallback((idx: number) => {
     const qIdx = flatQueue.findIndex(q => q.topIdx === idx);
     if (qIdx !== -1) {
+        setIsTransitioning(true);
         setQueueIndex(qIdx);
         setCurrentRepeat(1);
     }
@@ -91,6 +99,7 @@ export const PlayView: React.FC = () => {
     
     if (trigger && lastScheduledIdRef.current !== `${trigger.id}-${timeStr}`) {
         lastScheduledIdRef.current = `${trigger.id}-${timeStr}`;
+        setIsTransitioning(true);
         setActivePlaylistId(trigger.playlistId);
         setQueueIndex(0);
         setCurrentRepeat(1);
@@ -125,7 +134,10 @@ export const PlayView: React.FC = () => {
     // Reset mediaUrl immediately when item changes to stop previous playback
     setMediaUrl(null);
 
-    if (!currentItem) return;
+    if (!currentItem) {
+      setIsTransitioning(false);
+      return;
+    }
 
     if (currentItem.type === PlaylistItemType.AUDIO || currentItem.type === PlaylistItemType.VIDEO) {
       if (currentItem.sourceId) {
@@ -140,12 +152,18 @@ export const PlayView: React.FC = () => {
           }
         } catch (err) {
           console.error("Error loading file:", err);
+          setIsTransitioning(false);
         }
+      } else {
+        setIsTransitioning(false);
       }
+    } else {
+      setIsTransitioning(false);
     }
   }, [currentItem]);
 
   const onLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    setIsTransitioning(false);
     const media = e.currentTarget;
     if (currentItem && currentItem.start) {
         media.currentTime = currentItem.start;
@@ -166,6 +184,18 @@ export const PlayView: React.FC = () => {
   const onMediaEnded = () => {
     handleNext(queueIndex, currentRepeat);
   };
+
+  const onMediaPlay = useCallback(() => {
+    setIsPlaying(true);
+  }, []);
+
+  const onMediaPause = useCallback((e: React.SyntheticEvent<HTMLMediaElement>) => {
+    // If the media finished naturally, let onMediaEnded handle the advancement.
+    if (e.currentTarget.ended) return;
+    if (mediaUrl && !isTransitioning && !isTransitioningRef.current) {
+        setIsPlaying(false);
+    }
+  }, [mediaUrl, isTransitioning]);
 
   useEffect(() => {
     loadItem();
@@ -206,6 +236,8 @@ export const PlayView: React.FC = () => {
     if (lastHandledRef.current === currentId) return;
     lastHandledRef.current = currentId;
 
+    setIsTransitioning(true);
+
     if (currentRepeat < currentItem.repeatCount) {
       setCurrentRepeat(prev => prev + 1);
       const media = currentItem.type === PlaylistItemType.AUDIO ? audioRef.current : videoRef.current;
@@ -215,6 +247,9 @@ export const PlayView: React.FC = () => {
             media.play().catch(() => {});
           }
       }
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 100);
     } else {
       setCurrentRepeat(1);
       setQueueIndex(prev => {
@@ -222,6 +257,7 @@ export const PlayView: React.FC = () => {
               return prev + 1;
           } else {
               setIsPlaying(false);
+              setIsTransitioning(false);
               return 0;
           }
       });
@@ -256,12 +292,13 @@ export const PlayView: React.FC = () => {
                 currentRepeat={currentRepeat}
                 mediaUrl={mediaUrl}
                 isPlaying={isPlaying}
-                setIsPlaying={setIsPlaying}
                 audioRef={audioRef}
                 videoRef={videoRef}
                 onLoadedMetadata={onLoadedMetadata}
                 onTimeUpdate={onTimeUpdate}
                 onEnded={onMediaEnded}
+                onPlay={onMediaPlay}
+                onPause={onMediaPause}
                 handleNext={handleNext}
             />
 

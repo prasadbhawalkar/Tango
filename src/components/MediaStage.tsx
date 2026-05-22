@@ -10,12 +10,13 @@ interface MediaStageProps {
   currentRepeat: number;
   mediaUrl: string | null;
   isPlaying: boolean;
-  setIsPlaying: (playing: boolean) => void;
   audioRef: React.RefObject<HTMLAudioElement | null>;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onLoadedMetadata: (e: React.SyntheticEvent<HTMLMediaElement>) => void;
   onTimeUpdate: (e: React.SyntheticEvent<HTMLMediaElement>) => void;
   onEnded: () => void;
+  onPlay: () => void;
+  onPause: (e: React.SyntheticEvent<HTMLMediaElement>) => void;
   handleNext: (targetIndex?: number, targetRepeat?: number) => void;
 }
 
@@ -26,12 +27,13 @@ export const MediaStage: React.FC<MediaStageProps> = ({
   currentRepeat,
   mediaUrl,
   isPlaying,
-  setIsPlaying,
   audioRef,
   videoRef,
   onLoadedMetadata,
   onTimeUpdate,
   onEnded,
+  onPlay,
+  onPause,
   handleNext,
 }) => {
   return (
@@ -90,10 +92,8 @@ export const MediaStage: React.FC<MediaStageProps> = ({
                             autoPlay={isPlaying}
                             controls
                             className="w-full accent-orange-500 h-10"
-                            onPlay={() => setIsPlaying(true)}
-                            onPause={() => {
-                                if (mediaUrl) setIsPlaying(false);
-                            }}
+                            onPlay={onPlay}
+                            onPause={onPause}
                             id="audio-player"
                         />
                     )}
@@ -108,10 +108,8 @@ export const MediaStage: React.FC<MediaStageProps> = ({
                             autoPlay={isPlaying}
                             controls
                             className="w-full rounded-xl shadow-2xl border border-white/5 max-h-[40vh] md:max-h-[350px] bg-black"
-                            onPlay={() => setIsPlaying(true)}
-                            onPause={() => {
-                                if (mediaUrl) setIsPlaying(false);
-                            }}
+                            onPlay={onPlay}
+                            onPause={onPause}
                             id="video-player"
                         />
                     )}
