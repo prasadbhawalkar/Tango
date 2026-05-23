@@ -56,26 +56,18 @@ const TangoApp = () => {
       <nav className="h-16 px-6 bg-slate-900 flex items-center justify-between border-b border-slate-800 shadow-xl z-50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg shadow-orange-500/20">
-            A
+            M
           </div>
-          <span className="text-white font-bold tracking-tight text-xl text-nowrap">AoL <span className="text-orange-500 tracking-widest uppercase ml-1">Tango App</span></span>
+          <span className="text-white font-bold tracking-tight text-base md:text-xl text-nowrap flex flex-col md:flex-row md:items-center md:gap-2">
+            <span>Music Sathi</span>
+            <span className="text-orange-500 text-xs md:text-base font-medium hidden xs:inline">म्युझिक साथी</span>
+          </span>
         </div>
 
         <div className="flex bg-slate-800 p-1 rounded-xl shadow-inner border border-slate-700">
           <button 
-            onClick={() => setMode('design')}
-            className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all uppercase text-xs font-bold ${
-              activeMode === 'design' 
-                ? 'bg-orange-500 text-white shadow-lg' 
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Edit3 size={16} /> 
-            <span>Design</span>
-          </button>
-          <button 
             onClick={() => setMode('play')}
-            className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all uppercase text-xs font-bold ${
+            className={`px-3 md:px-6 py-2 rounded-lg flex items-center gap-2 transition-all uppercase text-xs font-bold ${
               activeMode === 'play' 
                 ? 'bg-orange-500 text-white shadow-lg' 
                 : 'text-slate-400 hover:text-white'
@@ -83,6 +75,17 @@ const TangoApp = () => {
           >
             <PlaySquare size={16} /> 
             <span>Play</span>
+          </button>
+          <button 
+            onClick={() => setMode('design')}
+            className={`px-3 md:px-6 py-2 rounded-lg flex items-center gap-2 transition-all uppercase text-xs font-bold ${
+              activeMode === 'design' 
+                ? 'bg-orange-500 text-white shadow-lg' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Edit3 size={16} /> 
+            <span>Design</span>
           </button>
         </div>
 
