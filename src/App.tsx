@@ -12,12 +12,14 @@ import React, { useState, useEffect } from 'react';
 import { TangoProvider, useTango } from './context/TangoContext';
 import { DesignView } from './components/DesignView';
 import { PlayView } from './components/PlayView';
-import { Layout, Settings, PlaySquare, Edit3, Monitor, CheckCircle2, X } from 'lucide-react';
+import { Layout, Settings, PlaySquare, Edit3, Monitor, CheckCircle2, X, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { UserManualModal } from './components/UserManualModal';
 
 const TangoApp = () => {
   const { activeMode, setMode, isLoaded, schedules, playlists } = useTango();
   const [notification, setNotification] = useState<string | null>(null);
+  const [isManualOpen, setIsManualOpen] = useState(false);
 
   // Background Schedule Checker
   useEffect(() => {
@@ -96,9 +98,20 @@ const TangoApp = () => {
                  {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }}></div>)}
               </div>
            </div>
+           <button 
+             onClick={() => setIsManualOpen(true)}
+             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950/50 hover:bg-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-all text-xs font-bold"
+             title="Open User Manual"
+           >
+             <BookOpen size={14} className="text-orange-500" />
+             <span className="hidden sm:inline">Manual</span>
+           </button>
            <Settings size={20} className="text-slate-400 cursor-pointer hover:rotate-90 hover:text-white transition-all duration-500" />
         </div>
       </nav>
+
+      {/* User Guide Interactive Modal */}
+      <UserManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
 
       {/* Persistent Notification */}
       <AnimatePresence>
